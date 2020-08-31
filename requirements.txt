@@ -1,0 +1,10 @@
+jupyter
+jupyterlab
+ipython==7.9
+torch
+numpy
+dill
+tqdm
+torchtext
+matplotlib
+
