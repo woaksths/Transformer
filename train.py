@@ -7,6 +7,7 @@ import torch.nn as nn
 import models
 from models import make_model
 from models import SourceField, TargetField
+from loss import NLLLoss
 
 
 parser = argparse.ArgumentParser(description='Transformer Tutorial')
@@ -21,6 +22,8 @@ opt = parser.parse_args()
 if opt.load_checkpoint is not None:
     pass
 else:
+    
+    # Prepare dataset
     src = SourceField()
     tgt = TargetField()
     max_len = 50
@@ -45,4 +48,12 @@ else:
     input_vocab = src.vocab
     output_vocab = tgt.vocab
     
+    #Prepare loss
+    weight = torch.ones(len(tgt.vocab))
+    pad = tgt.vocab.stoi[tgt.pad_token]
+    loss = NLLLoss(weight, pad)
+    
+    if torch.cuda.is_available():
+        loss.cuda()
+        
     
