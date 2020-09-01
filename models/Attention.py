@@ -3,6 +3,28 @@ import torch.nn as nn
 import math
 from utils import clones
 
+
+def attention(query, key, value, mask=None, dropout=None):
+    '''
+    Applies a scaled dot product attention
+    
+    Args:  query, key, value
+         - **query, key, value** (batch_size, head_size, seq_len, hidden_dim) 
+    Returns: output, p_attn
+         - **output** (batch_size, head_size, seq_len, hidden_dim)
+         - **p_attn** (batch_size, head_size, seq_len, seq_len)
+    '''
+    d_k = query.size(-1)
+    scores = torch.matmul(query, key.transpose(-2,-1)) / math.sqrt(d_k)
+    if mask is not None:
+        scores = scores.masked_fill(mask==0, float('-inf'))
+    p_attn = torch.softmax(scores, dim=-1)
+    if dropout is not None:
+        p_attn = dropout(p_attn)
+    output = torch.matmul(p_attn, value)
+    return output, p_attn
+
+
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
         super(MultiHeadedAttention, self).__init__()
@@ -37,22 +59,3 @@ class MultiHeadedAttention(nn.Module):
         return output
 
 
-def attention(query, key, value, mask=None, dropout=None):
-    '''
-    Applies a scaled dot product attention
-    
-    Args:  query, key, value
-         - **query, key, value** (batch_size, head_size, seq_len, hidden_dim) 
-    Returns: output, p_attn
-         - **output** (batch_size, head_size, seq_len, hidden_dim)
-         - **p_attn** (batch_size, head_size, seq_len, seq_len)
-    '''
-    d_k = query.size(-1)
-    scores = torch.matmul(query, key.transpose(-2,-1)) / math.sqrt(d_k)
-    if mask is not None:
-        scores = scores.masked_fill(mask==0, float('-inf'))
-    p_attn = torch.softmax(scores, dim=-1)
-    if dropout is not None:
-        p_attn = dropout(p_attn)
-    output = torch.matmul(p_attn, value)
-    return output, p_attn
