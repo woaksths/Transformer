@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from utils import clones
-from AddNorm import ResidualNet, LayerNorm
+from .utils import clones
+from .AddNorm import ResidualNet, LayerNorm
 
 
 class EncoderLayer(nn.Module):

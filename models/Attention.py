@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from utils import clones
+from .utils import clones
 
 
 def attention(query, key, value, mask=None, dropout=None):

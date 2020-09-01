@@ -1,13 +1,15 @@
-from Attention import MultiHeadedAttention
-from PositionwiseFeedForward import PositionwiseFeedForward
-from PositionalEncoding import PositionalEncoding
-from EncoderDecoder import EncoderDecoder
-from Encoder import EncoderLayer, Encoder
-from Decoder import DecoderLayer, Decoder
-from Embeddings import Embeddings
-from Generator import Generator
-from AddNorm import LayerNorm, ResidualNet
-
+from .Attention import MultiHeadedAttention
+from .PositionwiseFeedForward import PositionwiseFeedForward
+from .PositionalEncoding import PositionalEncoding
+from .EncoderDecoder import EncoderDecoder
+from .Encoder import EncoderLayer, Encoder
+from .Decoder import DecoderLayer, Decoder
+from .Embeddings import Embeddings
+from .Generator import Generator
+from .AddNorm import LayerNorm, ResidualNet
+import copy
+import torch
+import torch.nn as nn
 
 def make_model(src_vocab, tgt_vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
     c = copy.deepcopy
