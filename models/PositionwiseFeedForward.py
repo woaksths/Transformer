@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 class PositionwiseFeedForward(nn.Module):
     
@@ -10,5 +12,5 @@ class PositionwiseFeedForward(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
-        return self.w_2(self.dropout(F.reul(self.w_1(x))))
+        return self.w_2(self.dropout(F.relu(self.w_1(x))))
 

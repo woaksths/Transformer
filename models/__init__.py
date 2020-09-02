@@ -1,4 +1,4 @@
-from .utils import clones
+from .utils import clones, subsequent_mask, Batch
 
 from .fields import SourceField, TargetField
 from .Attention import MultiHeadedAttention
