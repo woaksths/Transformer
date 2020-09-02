@@ -66,7 +66,8 @@ else:
     
     #Initialize model
     if not opt.resume:
-        transformer = make_model(len(input_vocab), len(output_vocab), N=6, d_model=512, d_ff=2048, h=8, dropout=0.1)
+        transformer = make_model(len(input_vocab), len(output_vocab),
+                                 N=6, d_model=512, d_ff=2048, h=8, dropout=0.1)
         if torch.cuda.is_available():
             transformer.cuda()
         

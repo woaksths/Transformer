@@ -63,8 +63,7 @@ class SupervisedTrainer(object):
         return loss.get_loss()
 
     
-    def _train_epoches(self, data, model, n_epochs, start_epoch, start_step,
-                       dev_data=None, teacher_forcing_ratio=0):
+    def _train_epoches(self, data, model, n_epochs, start_epoch, start_step, dev_data=None):
         log = self.logger
 
         print_loss_total = 0  # Reset every print_every
@@ -126,8 +125,8 @@ class SupervisedTrainer(object):
             epoch_loss_total = 0
             log_msg = "Finished epoch %d: Train %s: %.4f" % (epoch, self.loss.name, epoch_loss_avg)
             if dev_data is not None:
-                dev_loss = self.evaluator.evaluate(model, dev_data)
-                log_msg += ", Dev %s: %.4f" % (self.loss.name, dev_loss)
+                dev_loss,accuracy= self.evaluator.evaluate(model, dev_data)
+                log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
                 model.train(mode=True)
             else:
                 self.optimizer.optimizer.update(epoch_loss_avg, epoch)
@@ -164,6 +163,5 @@ class SupervisedTrainer(object):
 
         self.logger.info("Optimizer: %s" % (self.optimizer.optimizer))
         self._train_epoches(data, model, num_epochs,
-                            start_epoch, step, dev_data=dev_data,
-                            teacher_forcing_ratio=teacher_forcing_ratio)
+                            start_epoch, step, dev_data=dev_data)
         return model

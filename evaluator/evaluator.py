@@ -49,11 +49,19 @@ class Evaluator(object):
                 
                 decoder_outputs = model(batch_obj.src, batch_obj.tgt,
                                         batch_obj.src_mask, batch_obj.tgt_mask)
-                
                 decoder_outputs = model.generator(decoder_outputs)
-
                 # Evaluation
                 for step in range(decoder_outputs.size(1)):
                     target = batch_obj.tgt_y[:, step]
                     loss.eval_batch(decoder_outputs[:,step,:], target)
-        return loss.get_loss()
+                    non_padding = target.ne(pad)
+                    correct = decoder_outputs[:,step,:].topk(1)[1].view(-1).eq(target).masked_select(non_padding).sum().item()
+                    match += correct
+                    total += non_padding.sum().item()
+                
+           
+        if total == 0:
+            accuracy = float('nan')
+        else:
+            accuracy = match / total
+        return loss.get_loss(), accuracy
