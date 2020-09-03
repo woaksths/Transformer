@@ -31,7 +31,7 @@ else:
     # Prepare dataset
     src = SourceField()
     tgt = TargetField()
-    max_len = 50
+    max_len = 100
     
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
@@ -74,8 +74,9 @@ else:
     #Train
     t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=50,
-                          print_every=10, expt_dir=opt.expt_dir)
+                          print_every=10, expt_dir=opt.expt_dir,
+                          input_vocab=input_vocab, output_vocab=output_vocab)
     
     transformer = t.train(transformer, train,
-                         num_epochs =200, dev_data=dev,
+                         num_epochs =100, dev_data=dev,
                          optimizer=optimizer, resume=opt.resume)

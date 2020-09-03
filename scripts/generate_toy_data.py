@@ -6,7 +6,7 @@ import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir', help="data directory", default="../dataset")
-parser.add_argument('--max_len', help="max sequence length", default=20)
+parser.add_argument('--max_len', help="max sequence length", default=100)
 args = parser.parse_args()
 
 
@@ -43,6 +43,6 @@ if __name__ == '__main__':
     if not os.path.exists(toy_dir):
         os.mkdir(toy_dir)
 
-    generate_dataset(toy_dir, 'train', 10000)
-    generate_dataset(toy_dir, 'dev', 1000)
-    generate_dataset(toy_dir, 'test', 1000)
+    generate_dataset(toy_dir, 'train', 50000)
+    generate_dataset(toy_dir, 'dev', 5000)
+    generate_dataset(toy_dir, 'test', 5000)

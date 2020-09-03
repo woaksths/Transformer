@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import itertools
 
 class NoamOpt:
     def __init__(self, model_size, factor, warmup, optimizer):
@@ -27,4 +28,3 @@ class NoamOpt:
 def get_std_opt(model):
     return NoamOpt(model.src_embed[0].d_model, 2, 4000,
                    torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-

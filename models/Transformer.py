@@ -31,7 +31,6 @@ def make_model(src_vocab, tgt_vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0
     generator = Generator(d_model, tgt_vocab)
     
     model =  EncoderDecoder(encoder, decoder, src_embedding, tgt_embedding, generator)
-    
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform(p)

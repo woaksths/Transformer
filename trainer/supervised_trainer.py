@@ -24,7 +24,7 @@ class SupervisedTrainer(object):
     """
     def __init__(self, expt_dir='experiment', loss=NLLLoss(), batch_size=64,
                  random_seed=None,
-                 checkpoint_every=100, print_every=100):
+                 checkpoint_every=100, print_every=100, input_vocab=None, output_vocab=None):
         self._trainer = "Simple Trainer"
         self.random_seed = random_seed
         if random_seed is not None:
@@ -41,9 +41,15 @@ class SupervisedTrainer(object):
         self.expt_dir = expt_dir
         if not os.path.exists(self.expt_dir):
             os.makedirs(self.expt_dir)
+            
         self.batch_size = batch_size
         self.logger = logging.getLogger(__name__)
-
+        self.input_vocab = input_vocab
+        self.output_vocab = output_vocab
+        self.src_pad_idx = input_vocab.stoi['<pad>']
+        self.tgt_pad_idx = output_vocab.stoi['<pad>']
+        assert self.src_pad_idx == self.tgt_pad_idx
+        
         
     def _train_batch(self, model, src, tgt, tgt_y, src_mask, tgt_mask):
         loss = self.loss
@@ -56,8 +62,7 @@ class SupervisedTrainer(object):
         for step in range(decoder_outputs.size(1)):
             loss.eval_batch(decoder_outputs[:,step,:], tgt_y[:,step])
         # Backward propagation
-        model.zero_grad()
-        # model.zero_grad() == optimizer.zero_grad()
+        self.optimizer.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         return loss.get_loss()
@@ -97,7 +102,7 @@ class SupervisedTrainer(object):
                 input_variables, _ = getattr(batch, 'src')
                 target_variables = getattr(batch, 'tgt')
 
-                batch_obj = Batch(input_variables, target_variables, 1)
+                batch_obj = Batch(input_variables, target_variables, self.src_pad_idx)
                 loss = self._train_batch(model,  batch_obj.src,  batch_obj.tgt, batch_obj.tgt_y,
                                          batch_obj.src_mask,  batch_obj.tgt_mask)
                 
@@ -124,13 +129,14 @@ class SupervisedTrainer(object):
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
             log_msg = "Finished epoch %d: Train %s: %.4f" % (epoch, self.loss.name, epoch_loss_avg)
+            
             if dev_data is not None:
                 dev_loss,accuracy= self.evaluator.evaluate(model, dev_data)
                 log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
                 model.train(mode=True)
             else:
-                self.optimizer.optimizer.update(epoch_loss_avg, epoch)
-
+                pass
+            
             log.info(log_msg)
 
             
