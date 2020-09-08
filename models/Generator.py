@@ -8,5 +8,5 @@ class Generator(nn.Module):
     
     
     def forward(self, x):
-        return torch.log_softmax(self.proj(x), dim=-1)
+        return self.proj(x)
 
