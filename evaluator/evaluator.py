@@ -27,12 +27,12 @@ class Evaluator(object):
         """
         model.eval()
 
-        loss = self.loss
-        loss.reset()
-        match = 0
-        total = 0
-
+        n_word_total = 0
+        n_word_correct =0
+        total_loss = 0
+        
         device =  torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
             sort=True, sort_key=lambda x: len(x.src),
@@ -40,28 +40,24 @@ class Evaluator(object):
         tgt_vocab = data.fields['tgt'].vocab
         pad = tgt_vocab.stoi[data.fields['tgt'].pad_token]
 
+        
         with torch.no_grad():
             for batch in batch_iterator:
                 input_variables, _  = getattr(batch, 'src')
                 target_variables = getattr(batch, 'tgt')
 
-                batch_obj = Batch(input_variables, target_variables, 1)
+                batch_obj = Batch(input_variables, target_variables, pad)
                 
                 decoder_outputs = model(batch_obj.src, batch_obj.tgt,
                                         batch_obj.src_mask, batch_obj.tgt_mask)
                 decoder_outputs = model.generator(decoder_outputs)
+
                 # Evaluation
-                for step in range(decoder_outputs.size(1)):
-                    target = batch_obj.tgt_y[:, step]
-                    loss.eval_batch(decoder_outputs[:,step,:], target)
-                    non_padding = target.ne(pad)
-                    correct = decoder_outputs[:,step,:].topk(1)[1].view(-1).eq(target).masked_select(non_padding).sum().item()
-                    match += correct
-                    total += non_padding.sum().item()
+                loss, n_word, n_correct =  self.loss.cal_loss(decoder_outputs.contiguous().\
+                                                              view(-1, decoder_outputs.size(2)),
+                                                              batch_obj.tgt_y.contiguous().view(-1))
+                total_loss += loss
+                n_word_total += n_word
+                n_word_correct += n_correct
                 
-           
-        if total == 0:
-            accuracy = float('nan')
-        else:
-            accuracy = match / total
-        return loss.get_loss(), accuracy
+        return total_loss/n_word_total, n_word_correct / n_word_total

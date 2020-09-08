@@ -1,1 +1,1 @@
-from .loss import NLLLoss, Loss
+from .loss import NLLLoss, Loss, CrossEntropyLoss

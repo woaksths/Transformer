@@ -104,7 +104,31 @@ class NLLLoss(Loss):
         self.acc_loss += self.criterion(outputs, target)
         self.norm_term += 1
 
+    
+class CrossEntropyLoss(Loss):
+    "cross entropy loss"
+    _NAME = "CrossEntropyLoss"
+    
+    def __init__(self, weight=None, mask=None, reduction='sum'):
+        self.mask = mask
+        self.reduction = reduction
+        self.criterion = nn.CrossEntropyLoss(weight=weight,
+                                             reduction=self.reduction,
+                                             ignore_index=self.mask)
+        super(CrossEntropyLoss, self).__init__(self._NAME, self.criterion) 
+
         
+    def cal_loss(self, predict, target):
+        non_pad_mask = target.ne(self.mask)
+        n_word = non_pad_mask.sum().item()        
+        loss = self.criterion(predict, target)
+
+        predict = predict.max(1)[1]
+        n_correct = predict.eq(target).masked_select(non_pad_mask.view(-1)).sum().item()
+        
+        return loss, n_word, n_correct
+                 
+                 
 class LabelSmoothing(nn.Module):
     "Implement label smoothing."
     def __init__(self, size, padding_idx, smoothing=0.0):
@@ -143,3 +167,4 @@ class SimpleLossCompute:
             self.opt.step()
             self.opt.optimizer.zero_grad()
         return loss.data[0] * norm
+    
