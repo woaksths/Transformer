@@ -8,13 +8,18 @@ import logging
 import models
 from models import make_model
 from models import SourceField, TargetField
-from loss import NLLLoss
+from loss import NLLLoss, CrossEntropyLoss
 from trainer import SupervisedTrainer
+from optim import NoamOpt, get_std_opt, Optimizer
+
 
 parser = argparse.ArgumentParser(description='Transformer Tutorial')
 parser.add_argument('--train_path', help='Path to train data')
 parser.add_argument('--dev_path', help='Path to dev data')
-
+parser.add_argument('--layer', default=6, type=int, help='hp > num of layer')
+parser.add_argument('--d_model', default=512, type=int, help='hp > model dimension')
+parser.add_argument('--d_ff', default=2048, type=int, help='hp > positionwise feedforward dimension')
+parser.add_argument('--head', default=8, type=int, help='num of head')
 parser.add_argument('--expt_dir', default='./experiment', help='Path to experiment directory' )
 parser.add_argument('--load_checkpoint', help='The name of checkpoint to load')
 parser.add_argument('--resume', default=False, help='Indicates if training has to be resumed from the latest checkpoint')
@@ -56,7 +61,7 @@ else:
     #Prepare loss
     weight = torch.ones(len(tgt.vocab))
     pad = tgt.vocab.stoi[tgt.pad_token]
-    loss = NLLLoss(weight, pad)
+    loss = CrossEntropyLoss(weight, pad, reduction='sum')
     
     if torch.cuda.is_available():
         loss.cuda()
@@ -67,16 +72,22 @@ else:
     #Initialize model
     if not opt.resume:
         transformer = make_model(len(input_vocab), len(output_vocab),
-                                 N=6, d_model=512, d_ff=2048, h=8, dropout=0.1)
+                                 N=opt.layer, d_model=opt.d_model, d_ff=opt.d_ff, h=opt.head, dropout=0.1)
+
         if torch.cuda.is_available():
             transformer.cuda()
-        
+    
+    #Initialize optimizer
+    if optimizer is None:
+        optimizer = Optimizer(torch.optim.Adam(transformer.parameters(),0.0001), max_grad_norm=5) 
+        # optimizer = get_std_opt(model)  Noam optimizer 
+    
     #Train
     t = SupervisedTrainer(loss=loss, batch_size=64,
-                          checkpoint_every=50,
-                          print_every=10, expt_dir=opt.expt_dir,
+                          checkpoint_every=300,
+                          print_every=300, expt_dir=opt.expt_dir,
                           input_vocab=input_vocab, output_vocab=output_vocab)
     
     transformer = t.train(transformer, train,
-                         num_epochs =100, dev_data=dev,
+                         num_epochs = 5, dev_data=dev,
                          optimizer=optimizer, resume=opt.resume)

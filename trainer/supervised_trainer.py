@@ -9,8 +9,9 @@ import torchtext
 from torch import optim
 from loss import NLLLoss
 from evaluator import Evaluator
-from optim import NoamOpt, get_std_opt
+from optim import NoamOpt, get_std_opt, Optimizer
 from models import Batch, subsequent_mask
+
 
 class SupervisedTrainer(object):
     """ The SupervisedTrainer class helps in setting up a training framework in a
@@ -48,33 +49,30 @@ class SupervisedTrainer(object):
         self.output_vocab = output_vocab
         self.src_pad_idx = input_vocab.stoi['<pad>']
         self.tgt_pad_idx = output_vocab.stoi['<pad>']
-        assert self.src_pad_idx == self.tgt_pad_idx
         
         
     def _train_batch(self, model, src, tgt, tgt_y, src_mask, tgt_mask):
-        loss = self.loss
-        # Forward propagation
+        # Forward propagation        
         decoder_outputs = model(src, tgt, src_mask, tgt_mask)
         decoder_outputs = model.generator(decoder_outputs)
 
-        # Get loss
-        loss.reset()
-        for step in range(decoder_outputs.size(1)):
-            loss.eval_batch(decoder_outputs[:,step,:], tgt_y[:,step])
+        # Get loss 
+        loss, n_word, n_correct = self.loss.cal_loss(decoder_outputs.contiguous().
+                                                     view(-1, decoder_outputs.size(2)),tgt_y.contiguous().view(-1))
+        
         # Backward propagation
         self.optimizer.optimizer.zero_grad()
+        loss /= n_word
         loss.backward()
         self.optimizer.step()
-        return loss.get_loss()
+        
+        return loss.item()*n_word, n_word, n_correct 
 
     
     def _train_epoches(self, data, model, n_epochs, start_epoch, start_step, dev_data=None):
         log = self.logger
-
-        print_loss_total = 0  # Reset every print_every
-        epoch_loss_total = 0  # Reset every epoch
-
         device =  torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
             sort=False, sort_within_batch=True,
@@ -83,8 +81,13 @@ class SupervisedTrainer(object):
         
         steps_per_epoch = len(batch_iterator)
         total_steps = steps_per_epoch * n_epochs
+        
         step = start_step
         step_elapsed = 0
+        print_loss_total = 0  # Reset every print_every
+        epoch_loss_total = 0  # Reset every epoch
+        n_word_total = 0
+        n_word_correct =0
         
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
@@ -102,23 +105,22 @@ class SupervisedTrainer(object):
                 input_variables, _ = getattr(batch, 'src')
                 target_variables = getattr(batch, 'tgt')
 
-                batch_obj = Batch(input_variables, target_variables, self.src_pad_idx)
-                loss = self._train_batch(model,  batch_obj.src,  batch_obj.tgt, batch_obj.tgt_y,
-                                         batch_obj.src_mask,  batch_obj.tgt_mask)
+                batch_obj = Batch(input_variables, target_variables, self.tgt_pad_idx)
+                loss, n_word, n_correct = self._train_batch(model,  batch_obj.src,  batch_obj.tgt, batch_obj.tgt_y,
+                                                            batch_obj.src_mask,  batch_obj.tgt_mask)
                 
                 # Record average loss
-                print_loss_total += loss
                 epoch_loss_total += loss
-
-                if step % self.print_every == 0 and step_elapsed > self.print_every:
-                    print_loss_avg = print_loss_total / self.print_every
-                    print_loss_total = 0
+                n_word_total += n_word
+                n_word_correct += n_correct
+                
+                if step%self.print_every == 0 and step_elapsed > self.print_every:
                     log_msg = 'Progress: %d%%, Train %s: %.4f' % (
                         step / total_steps * 100,
                         self.loss.name,
-                        print_loss_avg)
+                        loss/n_word)
                     log.info(log_msg)
-
+                    
                 # Checkpoint
                 if step % self.checkpoint_every == 0 or step == total_steps:
                     # save model
@@ -126,9 +128,13 @@ class SupervisedTrainer(object):
 
             if step_elapsed == 0: continue
 
-            epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
+            epoch_loss_avg = epoch_loss_total / n_word_total
+            accuracy = n_word_correct / n_word_total
+            n_word_total = 0
             epoch_loss_total = 0
-            log_msg = "Finished epoch %d: Train %s: %.4f" % (epoch, self.loss.name, epoch_loss_avg)
+            n_word_correct =0
+            
+            log_msg = "Finished epoch %d: Train %s: %.4f accuracy %.3f" % (epoch, self.loss.name, epoch_loss_avg, accuracy)
             
             if dev_data is not None:
                 dev_loss,accuracy= self.evaluator.evaluate(model, dev_data)
@@ -162,9 +168,6 @@ class SupervisedTrainer(object):
         else:
             start_epoch = 1
             step = 0
-            if optimizer is None:
-                # Noam optimizer 
-                optimizer = get_std_opt(model)
             self.optimizer = optimizer
 
         self.logger.info("Optimizer: %s" % (self.optimizer.optimizer))
