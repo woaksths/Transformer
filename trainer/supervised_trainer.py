@@ -11,7 +11,7 @@ from loss import NLLLoss
 from evaluator import Evaluator
 from optim import NoamOpt, get_std_opt, Optimizer
 from models import Batch, subsequent_mask
-
+from utils import Checkpoint
 
 class SupervisedTrainer(object):
     """ The SupervisedTrainer class helps in setting up a training framework in a
@@ -87,7 +87,9 @@ class SupervisedTrainer(object):
         print_loss_total = 0  # Reset every print_every
         epoch_loss_total = 0  # Reset every epoch
         n_word_total = 0
-        n_word_correct =0
+        n_word_correct = 0
+        min_loss = 123456789
+        max_acc = 0
         
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
@@ -121,10 +123,6 @@ class SupervisedTrainer(object):
                         loss/n_word)
                     log.info(log_msg)
                     
-                # Checkpoint
-                if step % self.checkpoint_every == 0 or step == total_steps:
-                    # save model
-                    pass
 
             if step_elapsed == 0: continue
 
@@ -132,7 +130,7 @@ class SupervisedTrainer(object):
             accuracy = n_word_correct / n_word_total
             n_word_total = 0
             epoch_loss_total = 0
-            n_word_correct =0
+            n_word_correct = 0
             
             log_msg = "Finished epoch %d: Train %s: %.4f accuracy %.3f" % (epoch, self.loss.name, epoch_loss_avg, accuracy)
             
@@ -140,6 +138,23 @@ class SupervisedTrainer(object):
                 dev_loss,accuracy= self.evaluator.evaluate(model, dev_data)
                 log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
                 model.train(mode=True)
+
+                # Checkpoint and Save model
+                if min_loss > dev_loss:
+                    min_loss = dev_loss
+                    Checkpoint(model=model,
+                               optimizer=self.optimizer,
+                               epoch=epoch, step=step,
+                               input_vocab=data.fields['src'].vocab,
+                               output_vocab=data.fields['tgt'].vocab).save(self.expt_dir +'/min_loss')
+                
+                if max_acc < accuracy:
+                    max_acc = accuracy
+                    Checkpoint(model=model,
+                               optimizer=self.optimizer,
+                               epoch=epoch, step=step,
+                               input_vocab=data.fields['src'].vocab,
+                               output_vocab=data.fields['tgt'].vocab).save(self.expt_dir +'/max_acc')
             else:
                 pass
             
