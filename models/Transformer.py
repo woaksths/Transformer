@@ -27,7 +27,6 @@ def make_model(src_vocab, tgt_vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0
     
     src_embedding = nn.Sequential(Embeddings(d_model, src_vocab), c(position))
     tgt_embedding = nn.Sequential(Embeddings(d_model, tgt_vocab), c(position))
-    
     generator = Generator(d_model, tgt_vocab)
     
     model =  EncoderDecoder(encoder, decoder, src_embedding, tgt_embedding, generator)

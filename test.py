@@ -1,0 +1,59 @@
+from utils import Checkpoint
+from torch.autograd import Variable
+from models import subsequent_mask
+import torch
+
+
+def get_test_data(fname):
+    src_set = []
+    tgt_set = []
+    with open(fname, 'r') as rf:
+        dataset = rf.read().split('\n')
+        for d in dataset:
+            if d.strip() =='':
+                continue
+            src, tgt = d.split('\t')[0], d.split('\t')[1]
+            src_set.append(src)
+            tgt_set.append(tgt)
+
+    return src_set, tgt_set
+
+
+def greedy_decode(model, src, src_mask, max_len, start_symbol):
+    model.eval()
+    with torch.no_grad():
+        memory = model.encode(src, src_mask)
+        ys = torch.ones(1,1).fill_(start_symbol).type_as(src.data)
+        for i in range(max_len-1):
+            out = model.decode(memory.cuda(), src_mask.cuda(), Variable(ys).cuda(),
+                               Variable(subsequent_mask(ys.size(1)).type_as(src.data)).cuda())
+            prob = model.generator(out[:, -1])
+            _, next_word = torch.max(prob, dim = 1)
+            next_word = next_word.data[0]
+            ys = torch.cat([ys, torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=1)
+    return ys
+
+
+checkpoint = Checkpoint.get_latest_checkpoint('supervised/transformer/max_acc/')
+transformer = Checkpoint.load(checkpoint)
+input_vocab = transformer.input_vocab
+output_vocab = transformer.output_vocab
+
+test_src, test_tgt = get_test_data('dataset/toy_reverse/test/data.txt')
+for idx, (t_src, t_tgt)  in enumerate(zip(test_src, test_tgt)):
+    source = t_src.replace(' ','')
+    target = t_tgt.replace(' ','')
+    src = torch.LongTensor([input_vocab.stoi[char] for char in t_src.split(' ')]).unsqueeze(0)
+    src_mask = Variable(torch.ones(1, 1, src.size(1)))
+    out = greedy_decode(transformer.model, src.cuda(), src_mask.cuda(), max_len=100, start_symbol=output_vocab.stoi['<sos>'])
+    out = out.view(-1)
+    predict =''
+    
+    for i in range(1, out.size(0)):
+        if output_vocab.itos[out[i]] == '<eos>':
+            break
+        predict +=  output_vocab.itos[out[i]]
+        
+    print('source:', source)
+    print('target:', target)
+    print('predict:', predict)

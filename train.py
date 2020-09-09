@@ -42,7 +42,7 @@ else:
         return len(example.src) <= max_len and len(example.tgt) <= max_len
     
     train = torchtext.data.TabularDataset(
-        path = opt.dev_path, format='tsv',
+        path = opt.train_path, format='tsv',
         fields = [('src',src),('tgt',tgt)],
         filter_pred = len_filter
     )
@@ -76,18 +76,18 @@ else:
 
         if torch.cuda.is_available():
             transformer.cuda()
-    
+
     #Initialize optimizer
     if optimizer is None:
         optimizer = Optimizer(torch.optim.Adam(transformer.parameters(),0.0001), max_grad_norm=5) 
-        # optimizer = get_std_opt(model)  Noam optimizer 
+        #optimizer = get_std_opt(transformer) # Noam optimizer 
     
     #Train
-    t = SupervisedTrainer(loss=loss, batch_size=64,
+    t = SupervisedTrainer(loss=loss, batch_size=128,
                           checkpoint_every=300,
                           print_every=300, expt_dir=opt.expt_dir,
                           input_vocab=input_vocab, output_vocab=output_vocab)
     
     transformer = t.train(transformer, train,
-                         num_epochs = 5, dev_data=dev,
+                         num_epochs = 100, dev_data=dev,
                          optimizer=optimizer, resume=opt.resume)
