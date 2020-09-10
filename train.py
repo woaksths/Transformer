@@ -36,7 +36,7 @@ else:
     # Prepare dataset
     src = SourceField()
     tgt = TargetField()
-    max_len = 100
+    max_len = 150
     
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
@@ -82,8 +82,10 @@ else:
         optimizer = Optimizer(torch.optim.Adam(transformer.parameters(),0.0001), max_grad_norm=5) 
         #optimizer = get_std_opt(transformer) # Noam optimizer 
     
+    opt.expt_dir = opt.expt_dir + '_layer:{}_dmodel:{}_dff:{}_head:{}'.format(opt.layer, opt.d_model, opt.d_ff, opt.head)
+    print(opt.expt_dir)
     #Train
-    t = SupervisedTrainer(loss=loss, batch_size=128,
+    t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=300,
                           print_every=300, expt_dir=opt.expt_dir,
                           input_vocab=input_vocab, output_vocab=output_vocab)

@@ -2,7 +2,8 @@ from utils import Checkpoint
 from torch.autograd import Variable
 from models import subsequent_mask
 import torch
-
+import argparse
+from FAdo.reex import *
 
 def get_test_data(fname):
     src_set = []
@@ -34,12 +35,22 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
     return ys
 
 
-checkpoint = Checkpoint.get_latest_checkpoint('supervised/transformer/max_acc/')
+parser = argparse.ArgumentParser(description="Type trained model")
+parser.add_argument('--checkpoint', help='Path to trained model')
+parser.add_argument('--test_path', help='Path to test data')
+opt = parser.parse_args()
+
+checkpoint = Checkpoint.get_latest_checkpoint(opt.checkpoint)
 transformer = Checkpoint.load(checkpoint)
 input_vocab = transformer.input_vocab
 output_vocab = transformer.output_vocab
+test_src, test_tgt = get_test_data(opt.test_path)
 
-test_src, test_tgt = get_test_data('dataset/toy_reverse/test/data.txt')
+
+dfa_equal = 0 
+string_equal = 0 
+invalid_regex = 0
+
 for idx, (t_src, t_tgt)  in enumerate(zip(test_src, test_tgt)):
     source = t_src.replace(' ','')
     target = t_tgt.replace(' ','')
@@ -53,7 +64,24 @@ for idx, (t_src, t_tgt)  in enumerate(zip(test_src, test_tgt)):
         if output_vocab.itos[out[i]] == '<eos>':
             break
         predict +=  output_vocab.itos[out[i]]
-        
+       
     print('source:', source)
     print('target:', target)
     print('predict:', predict)
+    print()
+    
+    try:
+        # DFA equivalence 
+        tgt_dfa = str2regexp(target).toDFA()
+        pred_dfa = str2regexp(predict).toDFA()
+        if tgt_dfa == pred_dfa:
+            dfa_equal += 1
+
+        # String Equal
+        if target == predict:
+            string_equal +=1 
+    except:
+        invalid_regex +=1 
+        
+print('total test data:{}, dfa equal:{}, string equal:{}'.format(len(test_src), dfa_equal, string_equal))
+print('invalid regex {}'.format(invalid_regex))
